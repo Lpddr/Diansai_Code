@@ -8,7 +8,7 @@ static scheduler_task_t scheduler_task[] =
     {Motor_Task,100,0},
     {Oled_Task,250,0},
     {Gray_Task,10,0},
-    {Uart_Proc,500,0},
+    //{Uart_Proc,500,0},
 };
 
 
