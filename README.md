@@ -1,7 +1,4 @@
-# Diansai_Code
+﻿# Diansai_Code
 
-2025电赛E题。
-
-## 版本信息
-Current Version: v1.1
-Source Version: v1.0
+Version 1.1: Includes 25E Code folder.
+Version 1.0: Excludes 25E Code folder.
