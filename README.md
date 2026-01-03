@@ -1,6 +1,6 @@
 # Diansai_Code
 
-电赛相关代码仓库
+2025电赛E题。
 
 ## 版本信息
 Current Version: v1.1
