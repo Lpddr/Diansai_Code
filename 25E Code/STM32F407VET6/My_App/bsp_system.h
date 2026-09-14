@@ -33,11 +33,6 @@
 #include "pid.h"
 #include "w25qxx.h"
 
-/*服务层头文件*/
-#include "task_service.h"
-#include "motion_fusion_service.h"
-
-
 extern UART_HandleTypeDef huart6;
 extern UART_HandleTypeDef huart4;
 extern UART_HandleTypeDef huart2;
