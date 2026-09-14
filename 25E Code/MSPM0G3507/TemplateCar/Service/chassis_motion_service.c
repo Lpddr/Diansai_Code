@@ -6,6 +6,7 @@ static chassis_motion_state_t chassis_motion_state;
 
 void ChassisMotion_Update5ms(void)
 {
+    /* V1.1：先缓存IMU角速度和左右轮速差，再由周期任务统一上报。 */
     /* IMU物理安装在云台上，gz作为云台角速度内环反馈。 */
     chassis_motion_state.imu_yaw_rate_dps = (float)wit_data.gz;
     chassis_motion_state.encoder_speed_diff_cm_s =

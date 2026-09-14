@@ -108,7 +108,6 @@ int main(void)
   Emm_V5_En_Control(&huart2, 0x01, true, 0);
   /* UART4连接MSPM0底盘，当前云台控制轴使用USART2。 */
   Pid_Init();
-  MotionFusion_Init();
   Menu_Init();
   scheduler_init();
   /* USER CODE END 2 */

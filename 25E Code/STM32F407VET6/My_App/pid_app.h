@@ -22,6 +22,9 @@ typedef struct
 
 void Pid_Init(void);
 void Pid_Task(void);
+void Pid_UpdateMotionFeedback(float gimbal_yaw_rate_dps,
+                              float encoder_speed_diff_cm_s);
+void Pid_MotionFeedback_HealthTask(void);
 extern float X_Output;
 extern float Y_Output;
 extern float X_Target_Rate;

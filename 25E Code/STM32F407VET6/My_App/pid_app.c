@@ -9,6 +9,74 @@ float X_Output=0,Y_Output=0;
 float X_Target_Rate=0;
 uint16_t Timer_500ms;
 static bool rate_loop_active;
+
+#define GIMBAL_IMU_RATE_SIGN             1.0f
+#define ENCODER_BODY_FF_GAIN             0.12f
+#define ENCODER_BODY_FF_SIGN             1.0f
+#define ENCODER_BODY_FF_LPF_ALPHA        0.70f
+#define ENCODER_BODY_FF_LIMIT            30.0f
+#define MOTION_TELEMETRY_TIMEOUT_MS      50U
+
+typedef struct
+{
+    float gimbal_yaw_rate_dps;
+    float encoder_feedforward_output;
+    uint32_t update_tick_ms;
+    bool valid;
+} motion_feedback_t;
+
+static motion_feedback_t motion_feedback;
+
+static bool MotionFeedback_IsValid(void)
+{
+    return motion_feedback.valid &&
+           (uint32_t)(HAL_GetTick() - motion_feedback.update_tick_ms) <=
+               MOTION_TELEMETRY_TIMEOUT_MS;
+}
+
+void Pid_UpdateMotionFeedback(float gimbal_yaw_rate_dps,
+                              float encoder_speed_diff_cm_s)
+{
+    float raw_feedforward = ENCODER_BODY_FF_SIGN *
+                            ENCODER_BODY_FF_GAIN *
+                            encoder_speed_diff_cm_s;
+
+    if (raw_feedforward > ENCODER_BODY_FF_LIMIT)
+    {
+        raw_feedforward = ENCODER_BODY_FF_LIMIT;
+    }
+    else if (raw_feedforward < -ENCODER_BODY_FF_LIMIT)
+    {
+        raw_feedforward = -ENCODER_BODY_FF_LIMIT;
+    }
+
+    motion_feedback.gimbal_yaw_rate_dps =
+        GIMBAL_IMU_RATE_SIGN * gimbal_yaw_rate_dps;
+
+    if (motion_feedback.valid)
+    {
+        motion_feedback.encoder_feedforward_output =
+            ENCODER_BODY_FF_LPF_ALPHA *
+                motion_feedback.encoder_feedforward_output +
+            (1.0f - ENCODER_BODY_FF_LPF_ALPHA) * raw_feedforward;
+    }
+    else
+    {
+        motion_feedback.encoder_feedforward_output = raw_feedforward;
+    }
+
+    motion_feedback.update_tick_ms = HAL_GetTick();
+    motion_feedback.valid = true;
+}
+
+void Pid_MotionFeedback_HealthTask(void)
+{
+    if (motion_feedback.valid && !MotionFeedback_IsValid())
+    {
+        motion_feedback.valid = false;
+        motion_feedback.encoder_feedforward_output = 0.0f;
+    }
+}
 PID_para X_para={
     .kp=0.5,//0.12//0.18//0.2//0.3//0.4 //0.8(超调1)//0.5      //0.4
     .ki=0,
@@ -96,7 +164,7 @@ static float Cascade_Gimbal_Control(PID_T *position_pid)
     X_Target_Rate =
         pid_calculate_positional(position_pid, g_circle.center_x);
 
-    if (MotionFusion_IsValid())
+    if (MotionFeedback_IsValid())
     {
         if (!rate_loop_active)
         {
@@ -105,13 +173,13 @@ static float Cascade_Gimbal_Control(PID_T *position_pid)
         }
 
         /* 角速度内环：期望角速度 - 云台IMU实测角速度。 */
-        rate_feedback = MotionFusion_GetGimbalYawRate();
+        rate_feedback = motion_feedback.gimbal_yaw_rate_dps;
         pid_set_target(&X_rate_pid, X_Target_Rate);
         motor_output =
             pid_calculate_positional(&X_rate_pid, rate_feedback);
 
         /* 编码器差速估计车体转动趋势，作为独立前馈叠加至执行量。 */
-        motor_output += MotionFusion_GetEncoderFeedforward();
+        motor_output += motion_feedback.encoder_feedforward_output;
     }
     else
     {
@@ -139,6 +207,10 @@ void Pid_Init(void)
     pid_init(&X_big_yuan_pid,X_big_yuan_para.kp,X_big_yuan_para.ki,X_big_yuan_para.kd,X_big_yuan_para.target,X_big_yuan_para.limit);
     pid_init(&X_rate_pid,X_rate_para.kp,X_rate_para.ki,X_rate_para.kd,X_rate_para.target,X_rate_para.limit);
     rate_loop_active = false;
+    motion_feedback.gimbal_yaw_rate_dps = 0.0f;
+    motion_feedback.encoder_feedforward_output = 0.0f;
+    motion_feedback.update_tick_ms = HAL_GetTick();
+    motion_feedback.valid = false;
 }
 
 
