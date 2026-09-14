@@ -4,7 +4,8 @@
 #include "bsp_system.h"
 void My_TIM_Init(void);
 extern uint16_t count_test;
+extern uint16_t Timer_Turn;
 
-#define TIME_TURN 750 //Êµ¼ÊÊ±¼ä:10*ÊýÖµ
+#define TIME_TURN 750 //å®žé™…æ—¶é—´:10*æ•°å€¼
 #endif
 

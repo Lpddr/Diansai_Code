@@ -30,6 +30,9 @@
 #include "pid_driver.h"
 #include "No_Mcu_Ganv_Grayscale_Sensor_Config.h"
 
+/*服务层头文件*/
+#include "chassis_motion_service.h"
+
 #define PRINT(window, fmt, args...) my_printf(UART_CH340_INST, "{"#window"}"fmt"\n", ##args)
 
 extern float initialize_yaw;

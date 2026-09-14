@@ -1,3 +1,10 @@
+/**
+ * @file pid.c
+ * @brief 与具体硬件无关的通用PID算法组件。
+ *
+ * 本组件只完成控制算法计算，不访问UART、定时器或电机；应用层负责设置
+ * 目标与反馈，驱动层负责执行最终控制量。
+ */
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>

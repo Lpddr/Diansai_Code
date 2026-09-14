@@ -1,17 +1,24 @@
+/**
+ * @file parse_app.c
+ * @brief è§†è§‰åæ ‡åè®®è§£ææœåŠ¡ã€‚
+ *
+ * è¯¥æ–‡ä»¶è™½ç„¶å› å†å²åŸå› ä½äºMy_Appï¼Œä½†é€»è¾‘ä¸Šå±äºæœåŠ¡å±‚ï¼šè´Ÿè´£æŠŠä¸²å£å¸§
+ * è½¬æ¢ä¸ºg_circleã€g_laserå’Œcrossç­‰åº”ç”¨å¯ä½¿ç”¨çš„æ•°æ®ï¼Œä¸ç›´æ¥æ“ä½œUARTç¡¬ä»¶ã€‚
+ */
 #include "parse_app.h"
 
-// È«¾Ö½á¹¹Ìå±äÁ¿£¬ÊµÊ±¸üĞÂ
-Circle_t g_circle = {0};  // µ±Ç°Ô²Êı¾İ
-Laser_t g_laser = {0};    // µ±Ç°¼¤¹âÊı¾İ
-Laser_t cross = {0};      // µ±Ç°Êı¾İ
+// å…¨å±€ç»“æ„ä½“å˜é‡ï¼Œå®æ—¶æ›´æ–°
+Circle_t g_circle = {0};  // å½“å‰åœ†æ•°æ®
+Laser_t g_laser = {0};    // å½“å‰æ¿€å…‰æ•°æ®
+Laser_t cross = {0};      // å½“å‰æ•°æ®
 
-// ¿ìËÙ×Ö·û´®×ªÕûÊıº¯Êı - Ìæ´ússcanf
+// å¿«é€Ÿå­—ç¬¦ä¸²è½¬æ•´æ•°å‡½æ•° - æ›¿ä»£sscanf
 static inline int fast_atoi(const char** str) {
     int result = 0;
     int sign = 1;
     const char* p = *str;
     
-    // ´¦Àí·ûºÅ
+    // å¤„ç†ç¬¦å·
     if (*p == '-') {
         sign = -1;
         p++;
@@ -19,71 +26,100 @@ static inline int fast_atoi(const char** str) {
         p++;
     }
     
-    // ×ª»»Êı×Ö
+    // è½¬æ¢æ•°å­—
     while (*p >= '0' && *p <= '9') {
         result = result * 10 + (*p - '0');
         p++;
     }
     
-    *str = p; // ¸üĞÂÖ¸ÕëÎ»ÖÃ
+    *str = p; // æ›´æ–°æŒ‡é’ˆä½ç½®
     return result * sign;
 }
 
-// ¿ìËÙ½âÎöÒ»ĞĞÊı¾İ
+// å¿«é€Ÿè§£æä¸€è¡Œæ•°æ®
 static inline void parse_packet(const char* start, const char* end) {
-    // ¼ì²é×îĞ¡³¤¶ÈºÍ¸ñÊ½
+    // æ£€æŸ¥æœ€å°é•¿åº¦å’Œæ ¼å¼
     if (end - start < 4 || start[0] != '$') return;
     
     char type = start[1];
-    const char* data_start = start + 3; // Ìø¹ı "$X,"
+    const char* data_start = start + 3; // è·³è¿‡ "$X,"
     
     int x, y;
     const char* p = data_start;
     
-    // ½âÎöµÚÒ»¸öÊı×Ö
+    // è§£æç¬¬ä¸€ä¸ªæ•°å­—
     x = fast_atoi(&p);
     
-    // ¼ì²éÊÇ·ñÓĞµÚ¶ş¸öÊı×Ö
+    // æ£€æŸ¥æ˜¯å¦æœ‰ç¬¬äºŒä¸ªæ•°å­—
     if (*p == ',') {
-        p++; // Ìø¹ı¶ººÅ
+        p++; // è·³è¿‡é€—å·
         y = fast_atoi(&p);
     } else {
         y = 0;
     }
     
-    // ¸ù¾İÀàĞÍ¸üĞÂ¶ÔÓ¦µÄÊı¾İ½á¹¹
+    // æ ¹æ®ç±»å‹æ›´æ–°å¯¹åº”çš„æ•°æ®ç»“æ„
     switch (type) {
-        case 'O': // Ô²ĞÄÊı¾İ
+        case 'O': // åœ†å¿ƒæ•°æ®
             g_circle.center_x = x;
             g_circle.center_y = y;
             break;
             
-        case 'L': // ¼¤¹âÊı¾İ
+        case 'L': // æ¿€å…‰æ•°æ®
             g_laser.x = (int16_t)x;
             g_laser.y = (int16_t)y;
             break;
             
-        case 'C': // Ê®×Ö¼ÜÊı¾İ
+        case 'C': // åå­—æ¶æ•°æ®
             cross.x = (int16_t)x;
             cross.y = (int16_t)y;
             break;
     }
 }
 
-// ÓÅ»¯µÄ´®¿ÚÊı¾İ½âÎöÖ÷º¯Êı
-void parse_serial_data(const char* buffer, uint16_t length) {
-    static const char* packet_start = NULL;
-    
-    for (uint16_t i = 0; i < length; i++) {
+// ä¼˜åŒ–çš„ä¸²å£æ•°æ®è§£æä¸»å‡½æ•°
+void parse_serial_data(const char *buffer, uint16_t length)
+{
+    static char packet[UART_RX_BUFFER_SIZE];
+    static uint16_t packet_length = 0;
+    static bool receiving = false;
+
+    for (uint16_t i = 0; i < length; i++)
+    {
         char c = buffer[i];
-        
-        if (c == '$') {
-            // ĞÂ°ü¿ªÊ¼
-            packet_start = &buffer[i];
-        } else if (c == '#' && packet_start != NULL) {
-            // °ü½áÊø£¬Á¢¼´½âÎö
-            parse_packet(packet_start, &buffer[i]);
-            packet_start = NULL;
+
+        /* é‡åˆ°æ–°å¸§å¤´ï¼šä¸¢å¼ƒä¹‹å‰æœªå®Œæˆçš„æ®‹å¸§ï¼Œé‡æ–°æ¥æ”¶ã€‚ */
+        if (c == '$')
+        {
+            packet_length = 0;
+            receiving = true;
+            packet[packet_length++] = c;
+            continue;
+        }
+
+        /* æ²¡æ‰¾åˆ°å¸§å¤´ä¹‹å‰ï¼Œå¿½ç•¥æ— æ•ˆæ•°æ®ã€‚ */
+        if (!receiving)
+        {
+            continue;
+        }
+
+        /* ç¼“å†²åŒºå·²æ»¡ä»æœªæ”¶åˆ°å¸§å°¾ï¼Œä¸¢å¼ƒå¼‚å¸¸å¸§ã€‚ */
+        if (packet_length >= sizeof(packet))
+        {
+            packet_length = 0;
+            receiving = false;
+            continue;
+        }
+
+        /* ä¿å­˜å®é™…æ•°æ®ï¼Œä¸å†ä¿å­˜ä¸´æ—¶ç¼“å†²åŒºä¸­çš„åœ°å€ã€‚ */
+        packet[packet_length++] = c;
+
+        /* æ”¶åˆ°å®Œæ•´å¸§åè§£æå¹¶å¤ä½ï¼Œç»§ç»­æ‰«æåé¢çš„ç²˜åŒ…æ•°æ®ã€‚ */
+        if (c == '#')
+        {
+            parse_packet(packet, packet + packet_length - 1);
+            packet_length = 0;
+            receiving = false;
         }
     }
 }

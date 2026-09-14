@@ -1,19 +1,29 @@
+/**
+ * @file uart_motor.c
+ * @brief UARTé€šä¿¡é€‚é…ä¸æ¿é—´åè®®å¤„ç†ã€‚
+ *
+ * èŒè´£è¾¹ç•Œï¼š
+ * - My_UartInit/HAL_UARTEx_RxEventCallbackï¼šåº•å±‚é€‚é…ï¼Œè´Ÿè´£DMAæ¥æ”¶ã€è½¬å­˜å’Œäº‹ä»¶é€šçŸ¥ï¼›
+ * - Parse_M0_Dataï¼šæœåŠ¡é€»è¾‘ï¼Œè´Ÿè´£è§£æMSPM0è¿åŠ¨é¥æµ‹å¹¶æ›´æ–°èåˆçŠ¶æ€ï¼›
+ * - æœ¬å·¥ç¨‹è§„æ¨¡è¾ƒå°ï¼Œæš‚æ—¶ä¿ç•™åœ¨åŒä¸€æ–‡ä»¶ï¼›ä¸­æ–­å›è°ƒä¸æ‰§è¡Œæ§åˆ¶ç®—æ³•å’Œå¤æ‚è§£æã€‚
+ */
 #include "uart_motor.h"
-//XÖáµç»ú
+//Xè½´ç”µæœº
 uint8_t uart2_dma_rx_buffer[UART_RX_BUFFER_SIZE];
 uint8_t uart2_read_buffer[UART_RX_BUFFER_SIZE];
-uint8_t uart2_flag;
-//MSPM0Í¨ĞÅ
+volatile uint8_t uart2_flag;
+//MSPM0é€šä¿¡
 uint8_t uart4_dma_rx_buffer[UART_RX_BUFFER_SIZE];
 uint8_t uart4_read_buffer[UART_RX_BUFFER_SIZE];
-uint8_t uart4_flag;
+volatile uint8_t uart4_flag;
+volatile uint16_t uart4_size;
 bool Turn_Flag;
 uint8_t car_point;
-//ÊÓ¾õ
+//è§†è§‰
 uint8_t uart6_dma_rx_buffer[UART_RX_BUFFER_SIZE];
 uint8_t uart6_read_buffer[UART_RX_BUFFER_SIZE];
-uint8_t uart6_flag;
-uint8_t uart6_size;
+volatile uint8_t uart6_flag;
+volatile uint16_t uart6_size;
 
 int my_printf(UART_HandleTypeDef *huart, const char *format, ...)
 {
@@ -32,19 +42,19 @@ int my_printf(UART_HandleTypeDef *huart, const char *format, ...)
 
 void My_UartInit(void)
 {
-//    //¿ªÆôÏÂÒ»´ÎDMA´«Êä
+//    //å¼€å¯ä¸‹ä¸€æ¬¡DMAä¼ è¾“
 //    HAL_UARTEx_ReceiveToIdle_DMA(&huart2, uart2_dma_rx_buffer, sizeof(uart2_dma_rx_buffer));
-//    //Èç¹û¹Ø±ÕÁË°ëÂúÖĞ¶Ï£¬ĞèÔÙ´Î´ò¿ª
+//    //å¦‚æœå…³é—­äº†åŠæ»¡ä¸­æ–­ï¼Œéœ€å†æ¬¡æ‰“å¼€
 //    __HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);
 //    
-    //¿ªÆôÏÂÒ»´ÎDMA´«Êä
+    //å¼€å¯ä¸‹ä¸€æ¬¡DMAä¼ è¾“
     HAL_UARTEx_ReceiveToIdle_DMA(&huart4, uart4_dma_rx_buffer, sizeof(uart4_dma_rx_buffer));
-    //Èç¹û¹Ø±ÕÁË°ëÂúÖĞ¶Ï£¬ĞèÔÙ´Î´ò¿ª
+    //å¦‚æœå…³é—­äº†åŠæ»¡ä¸­æ–­ï¼Œéœ€å†æ¬¡æ‰“å¼€
     __HAL_DMA_DISABLE_IT(&hdma_uart4_rx, DMA_IT_HT);
     
-    //¿ªÆôÏÂÒ»´ÎDMA´«Êä
+    //å¼€å¯ä¸‹ä¸€æ¬¡DMAä¼ è¾“
     HAL_UARTEx_ReceiveToIdle_DMA(&huart6, uart6_dma_rx_buffer, sizeof(uart6_dma_rx_buffer));
-    //Èç¹û¹Ø±ÕÁË°ëÂúÖĞ¶Ï£¬ĞèÔÙ´Î´ò¿ª
+    //å¦‚æœå…³é—­äº†åŠæ»¡ä¸­æ–­ï¼Œéœ€å†æ¬¡æ‰“å¼€
     __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
 }
 
@@ -53,86 +63,149 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef* huart, uint16_t Size)
 {
 	if (huart->Instance == USART2)
 	{
-		//¹Ø±ÕDMA´«Êä
+		//å…³é—­DMAä¼ è¾“
 		HAL_UART_DMAStop(huart);
 
-		//¸´ÖÆµ½»º³åÇø
+		//å¤åˆ¶åˆ°ç¼“å†²åŒº
 		memcpy((char*)uart2_read_buffer,(char*)uart2_dma_rx_buffer,Size);
-		//±êÖ¾Î»À­¸ß
+		//æ ‡å¿—ä½æ‹‰é«˜
 		uart2_flag = 1;
 
-		//Çå¿ÕDMA»º³åÇø
+		//æ¸…ç©ºDMAç¼“å†²åŒº
 		memset(uart2_dma_rx_buffer, 0, sizeof(uart2_dma_rx_buffer));
 
-		//¿ªÆôÏÂÒ»´ÎDMA´«Êä
+		//å¼€å¯ä¸‹ä¸€æ¬¡DMAä¼ è¾“
 		HAL_UARTEx_ReceiveToIdle_DMA(&huart2, uart2_dma_rx_buffer, sizeof(uart2_dma_rx_buffer));
 
-		//Èç¹û¹Ø±ÕÁË°ëÂúÖĞ¶Ï£¬ĞèÔÙ´Î´ò¿ª
+		//å¦‚æœå…³é—­äº†åŠæ»¡ä¸­æ–­ï¼Œéœ€å†æ¬¡æ‰“å¼€
 		__HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);
 	}
     
     else if(huart->Instance == UART4)
     {
-        //¹Ø±ÕDMA´«Êä
+        //å…³é—­DMAä¼ è¾“
 		HAL_UART_DMAStop(huart);
 
-		//¸´ÖÆµ½»º³åÇø
+		//å¤åˆ¶åˆ°ç¼“å†²åŒº
 		memcpy((char*)uart4_read_buffer,(char*)uart4_dma_rx_buffer,Size);
-		//±êÖ¾Î»À­¸ß
+		uart4_size = Size;
+		//æ ‡å¿—ä½æ‹‰é«˜
 		uart4_flag = 1;
 
-		//Çå¿ÕDMA»º³åÇø
+		//æ¸…ç©ºDMAç¼“å†²åŒº
 		memset(uart4_dma_rx_buffer, 0, sizeof(uart4_dma_rx_buffer));
 
-		//¿ªÆôÏÂÒ»´ÎDMA´«Êä
+		//å¼€å¯ä¸‹ä¸€æ¬¡DMAä¼ è¾“
 		HAL_UARTEx_ReceiveToIdle_DMA(&huart4, uart4_dma_rx_buffer, sizeof(uart4_dma_rx_buffer));
 
-		//Èç¹û¹Ø±ÕÁË°ëÂúÖĞ¶Ï£¬ĞèÔÙ´Î´ò¿ª
+		//å¦‚æœå…³é—­äº†åŠæ»¡ä¸­æ–­ï¼Œéœ€å†æ¬¡æ‰“å¼€
 		__HAL_DMA_DISABLE_IT(&hdma_uart4_rx, DMA_IT_HT);
     }
     else if(huart->Instance == USART6)
     {
-        //¹Ø±ÕDMA´«Êä
+        //å…³é—­DMAä¼ è¾“
 		HAL_UART_DMAStop(huart);
-		//¸´ÖÆµ½»º³åÇø
+		//å¤åˆ¶åˆ°ç¼“å†²åŒº
 		memcpy((char*)uart6_read_buffer,(char*)uart6_dma_rx_buffer,Size);
         uart6_size=Size;
-		//±êÖ¾Î»À­¸ß
+		//æ ‡å¿—ä½æ‹‰é«˜
 		uart6_flag = 1;
 
-		//Çå¿ÕDMA»º³åÇø
+		//æ¸…ç©ºDMAç¼“å†²åŒº
 		memset(uart6_dma_rx_buffer, 0, sizeof(uart6_dma_rx_buffer));
 
-		//¿ªÆôÏÂÒ»´ÎDMA´«Êä
+		//å¼€å¯ä¸‹ä¸€æ¬¡DMAä¼ è¾“
 		HAL_UARTEx_ReceiveToIdle_DMA(&huart6, uart6_dma_rx_buffer, sizeof(uart6_dma_rx_buffer));
 
-		//Èç¹û¹Ø±ÕÁË°ëÂúÖĞ¶Ï£¬ĞèÔÙ´Î´ò¿ª
+		//å¦‚æœå…³é—­äº†åŠæ»¡ä¸­æ–­ï¼Œéœ€å†æ¬¡æ‰“å¼€
 		__HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
 }
 }
 
-void Parse_M0_Data(const char* data)
+static bool parse_scaled_integer(const char **cursor,
+                                 const char *end,
+                                 int32_t *value)
 {
+    int32_t result = 0;
+    int32_t sign = 1;
+    bool has_digit = false;
+    const char *p = *cursor;
 
-   if(data[0]>='1'&&data[0]<='9')
-   {
-      car_point=data[0]-'0';
-       
-       Turn_Flag=1;
-       if(car_point==1||car_point==4||car_point==5||car_point==8)
-       pid_mode=2;
-       else
-           pid_mode=3;
-   }
+    if (p < end && (*p == '-' || *p == '+'))
+    {
+        sign = (*p == '-') ? -1 : 1;
+        p++;
+    }
+
+    while (p < end && *p >= '0' && *p <= '9')
+    {
+        has_digit = true;
+        result = result * 10 + (*p - '0');
+        p++;
+    }
+
+    if (!has_digit)
+    {
+        return false;
+    }
+
+    *cursor = p;
+    *value = result * sign;
+    return true;
+}
+
+void Parse_M0_Data(const char *data, uint16_t length)
+{
+    const char *cursor = data;
+    const char *end = data + length;
+    int32_t gimbal_rate_x10;
+    int32_t encoder_diff_x10;
+    int32_t point;
+
+    while ((cursor + 3) < end &&
+           !(cursor[0] == '$' && cursor[1] == 'M' && cursor[2] == ','))
+    {
+        cursor++;
+    }
+
+    if ((cursor + 3) >= end)
+    {
+        return;
+    }
+
+    cursor += 3;
+    if (!parse_scaled_integer(&cursor, end, &gimbal_rate_x10) ||
+        cursor >= end || *cursor++ != ',' ||
+        !parse_scaled_integer(&cursor, end, &encoder_diff_x10) ||
+        cursor >= end || *cursor++ != ',' ||
+        !parse_scaled_integer(&cursor, end, &point) ||
+        cursor >= end || *cursor != '#')
+    {
+        return;
+    }
+
+    /* IMUå®‰è£…åœ¨äº‘å°ä¸Šï¼šè§’é€Ÿåº¦ä¾›å†…ç¯åé¦ˆï¼Œç¼–ç å™¨å·®é€Ÿä¾›è½¦ä½“å‰é¦ˆã€‚ */
+    MotionFusion_Update((float)gimbal_rate_x10 / 10.0f,
+                        (float)encoder_diff_x10 / 10.0f,
+                        (uint8_t)point);
+
+    if (point >= 1 && point <= 9 && (uint8_t)point != car_point)
+    {
+        car_point = (uint8_t)point;
+        Turn_Flag = true;
+        Timer_Turn = 0U;
+        pid_mode = (car_point == 1U || car_point == 4U ||
+                    car_point == 5U || car_point == 8U) ? 2U : 3U;
+    }
 }
 
 
 void Uart_Proc(void)
 {
-	//Èç¹ûÎŞÊı¾İÖ±½Ó·µ»Ø
+	//å¦‚æœæ— æ•°æ®ç›´æ¥è¿”å›
 	if (uart2_flag)
       {
-        //Èç¹ûÓĞÊı¾İ½øĞĞ½âÎö
+        //å¦‚æœæœ‰æ•°æ®è¿›è¡Œè§£æ
 //        Emm_V5_Parse_Response(uart2_read_buffer,sizeof(uart2_read_buffer),&motor1);
 //        my_printf(&huart6,"X:%s\r\n",uart6_read_buffer);
         memset(uart2_read_buffer, 0, sizeof(uart2_read_buffer));

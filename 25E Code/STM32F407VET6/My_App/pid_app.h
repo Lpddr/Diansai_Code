@@ -4,20 +4,19 @@
 #include "bsp_system.h"
 
 #define X_shaft 0
-#define Y_shaft 1
 #define X_huart huart2
-#define Y_huart huart4
+/* UART4ä¿ç•™ç»™MSPM0åº•ç›˜é¥æµ‹é“¾è·¯ã€‚ */
 
 #define CROSS_X 153
 #define CROSS_Y 83
 
 typedef struct
 {
-    float kp;					/* ±ÈÀı */
-    float ki;					/* »ı·Ö */
-    float kd;					/* Î¢·Ö */
-    float target;				/* Ä¿±êÖµ */
-    float limit;                /* PID(out)Êä³öÏŞ·ùÖµ */
+    float kp;					/* æ¯”ä¾‹ */
+    float ki;					/* ç§¯åˆ† */
+    float kd;					/* å¾®åˆ† */
+    float target;				/* ç›®æ ‡å€¼ */
+    float limit;                /* PID(out)è¾“å‡ºé™å¹…å€¼ */
 }PID_para;
 
 
@@ -25,6 +24,7 @@ void Pid_Init(void);
 void Pid_Task(void);
 extern float X_Output;
 extern float Y_Output;
-extern bool Pid_Running;//0Í£Ö¹ 1Æô¶¯
+extern float X_Target_Rate;
+extern bool Pid_Running;//0åœæ­¢ 1å¯åŠ¨
 extern uint8_t pid_mode;
 #endif

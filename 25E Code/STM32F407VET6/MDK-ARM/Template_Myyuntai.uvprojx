@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F407xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../My_App;../My_Driver;../Components/Oled;../Components/Pid;../Components/W25Qxx</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../My_App;../My_Service;../My_Driver;../Components/Oled;../Components/Pid;../Components/W25Qxx</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1003,11 +1003,6 @@
               <FilePath>..\My_App\uart_motor.c</FilePath>
             </File>
             <File>
-              <FileName>scheduler.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\My_App\scheduler.c</FilePath>
-            </File>
-            <File>
               <FileName>pid_app.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\My_App\pid_app.c</FilePath>
@@ -1031,6 +1026,31 @@
               <FileName>oled_app.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\My_App\oled_app.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>My_Service</GroupName>
+          <Files>
+            <File>
+              <FileName>scheduler.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My_Service\scheduler.c</FilePath>
+            </File>
+            <File>
+              <FileName>scheduler.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\My_Service\scheduler.h</FilePath>
+            </File>
+            <File>
+              <FileName>task_service.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My_Service\task_service.c</FilePath>
+            </File>
+            <File>
+              <FileName>motion_fusion_service.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My_Service\motion_fusion_service.c</FilePath>
             </File>
           </Files>
         </Group>

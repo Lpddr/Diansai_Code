@@ -34,16 +34,9 @@ unsigned int adc_getValue(void)
  */
 void Task_GraySensor(void)
 {
-    // // 调用传感器处理函数（无时基版本，与gpio_toggle_output.c逻辑一致）
-    // No_Mcu_Ganv_Sensor_Task_Without_tick(&GraySensor);
-
-    // // 获取数字值（二值化结果）
-    // Gray_Digtal = Get_Digtal_For_User(&GraySensor);
-
-    // // 获取模拟值（原始ADC值）
-    // Get_Anolog_Value(&GraySensor, Gray_Anolog);
-
-    // // 获取归一化值（0~4095，基于12位ADC）
-    // Get_Normalize_For_User(&GraySensor, Gray_Normal);
-    DL_ADC12_startConversion(ADC1_INST);//开始转换adc值
+    No_Mcu_Ganv_Sensor_Task_Without_tick(&GraySensor);
+    Gray_Digtal = Get_Digtal_For_User(&GraySensor);
+    Digital = Gray_Digtal;
+    Get_Anolog_Value(&GraySensor, Gray_Anolog);
+    Get_Normalize_For_User(&GraySensor, Gray_Normal);
 }

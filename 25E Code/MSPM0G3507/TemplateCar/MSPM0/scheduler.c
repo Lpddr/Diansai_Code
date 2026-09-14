@@ -18,13 +18,12 @@ uint8_t task_num;
 static scheduler_task_t scheduler_task[] =
 {
   {Key_Task, 10, 0},
-  {Oled_Task, 10, 0},
   {Uart_Task, 10, 0},
-//  {Mpu6050_Task, 1, 0},
-{Task_GraySensor,10,0},
+  {Task_GraySensor, 10, 0},
   {Gray_Task, 10, 0},
-  {Motor_Task, 10, 0},
-//  {Encoder_Task, 10, 0},
+  /* 100 Hz上报云台IMU角速度与底盘编码器差速，供云台串级控制使用。 */
+  {ChassisMotion_TelemetryTask, 10, 0},
+  {Oled_Task, 50, 0},
 };
 
 
@@ -44,19 +43,21 @@ void Scheduler_Init(void)
  */
 void Scheduler_Run(void)
 {
+  uint32_t now_time = tick_ms;
+
   // 遍历任务数组中的所有任务
   for (uint8_t i = 0; i < task_num; i++)
   {
-    // 获取当前的系统时间（毫秒）
-    uint32_t now_time = tick_ms;
-
-    // 检查当前时间是否达到任务的执行时间
-    if (now_time >= scheduler_task[i].rate_ms + scheduler_task[i].last_run)
+    uint32_t elapsed = now_time - scheduler_task[i].last_run;
+    if (elapsed >= scheduler_task[i].rate_ms)
     {
-      // 更新任务的上次运行时间为当前时间
-      scheduler_task[i].last_run = now_time;
+      scheduler_task[i].last_run += scheduler_task[i].rate_ms;
 
-      // 执行任务函数
+      if (elapsed >= (scheduler_task[i].rate_ms * 2U))
+      {
+        scheduler_task[i].last_run = now_time;
+      }
+
       scheduler_task[i].task_func();
     }
   }
@@ -155,6 +156,7 @@ void TIMER_10ms_INST_IRQHandler(void)
 
         Update_Encoder_Data_Filtered(&left_encoder);
         Update_Encoder_Data_Filtered(&right_encoder);
+        ChassisMotion_Update5ms();
         PID_Task();
     }
 }

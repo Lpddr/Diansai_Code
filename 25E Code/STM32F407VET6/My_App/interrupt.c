@@ -1,5 +1,11 @@
+/**
+ * @file interrupt.c
+ * @brief 定时器中断适配。
+ *
+ * 该文件逻辑上属于BSP/系统底层：只维护必要的时基和状态，不在中断中执行
+ * UART协议解析、PID计算或OLED刷新等耗时业务。
+ */
 #include "interrupt.h"
-uint8_t Timer_10ms;
 uint16_t Timer_Turn;
 void My_TIM_Init(void)
 {
@@ -10,17 +16,7 @@ void My_TIM_Init(void)
 
 
 
-void Uart_Parse(void)
-{
-       if (uart6_flag)
-      {
-        parse_serial_data((char*)uart6_read_buffer,uart6_size);
-        memset(uart6_read_buffer, 0, sizeof(uart6_read_buffer));
-        uart6_flag = 0;
-      }
-}
-
-// TIM2 �жϷ�������1ms �жϣ�
+// TIM2 中断服务函数（1ms 中断）
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if(htim->Instance == htim2.Instance) 
@@ -35,20 +31,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                     Timer_Turn=0;
                 }
             }
-            
-               if (uart4_flag)
-      {
-        //��������ݽ��н���
-        Parse_M0_Data((const char*)uart4_read_buffer);
-        memset(uart4_read_buffer, 0,strlen((char*)uart4_read_buffer));
-        uart4_flag = 0;
-      }
-            
-        if(++Timer_10ms>=10)
-        {
-            Uart_Parse();
-            Pid_Task();
-        }
     }
 }
 

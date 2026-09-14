@@ -1,85 +1,92 @@
+/**
+ * @file flash_app.c
+ * @brief åæ ‡å‚æ•°æŒä¹…åŒ–æœåŠ¡ã€‚
+ *
+ * æœ¬æ–‡ä»¶å°è£…â€œä¿å­˜ä»€ä¹ˆã€å­˜åˆ°å“ªé‡Œâ€çš„ä¸šåŠ¡è§„åˆ™ï¼›åº•å±‚SPIæŒ‡ä»¤ã€é¡µå†™å’Œæ‰‡åŒºæ“¦é™¤
+ * ç”±Components/W25Qxxè´Ÿè´£ã€‚è™½ç„¶å› å†å²åŸå› ä½äºMy_Appï¼Œé€»è¾‘ä¸Šæ›´æ¥è¿‘æœåŠ¡å±‚ã€‚
+ */
 #include "flash_app.h"
 Coordinate_t test_flash;
 
 /**
- * @brief  Ğ´Èë×ø±êµ½Flash
- * @param  index: ×ø±êË÷Òı (0 ~ MAX_COORDINATE_COUNT-1)
- * @param  x: X×ø±êÖµ
- * @param  y: Y×ø±êÖµ
- * @retval 0: ³É¹¦, 1: Ê§°Ü(Ë÷Òı³¬³ö·¶Î§)
+ * @brief  å†™å…¥åæ ‡åˆ°Flash
+ * @param  index: åæ ‡ç´¢å¼• (0 ~ MAX_COORDINATE_COUNT-1)
+ * @param  x: Xåæ ‡å€¼
+ * @param  y: Yåæ ‡å€¼
+ * @retval 0: æˆåŠŸ, 1: å¤±è´¥(ç´¢å¼•è¶…å‡ºèŒƒå›´)
  */
 uint8_t W25QXX_WriteCoordinate(uint16_t index, uint16_t x, uint16_t y)
 {
     uint32_t addr;
     uint8_t data[COORDINATE_SIZE];
     
-    // ¼ì²éË÷Òı·¶Î§
+    // æ£€æŸ¥ç´¢å¼•èŒƒå›´
     if(index >= MAX_COORDINATE_COUNT)
     {
-        return 1;  // Ë÷Òı³¬³ö·¶Î§
+        return 1;  // ç´¢å¼•è¶…å‡ºèŒƒå›´
     }
     
-    // ¼ÆËã´æ´¢µØÖ·
+    // è®¡ç®—å­˜å‚¨åœ°å€
     addr = COORDINATE_BASE_ADDR + (index * COORDINATE_SIZE);
     
-    // ½«×ø±êÊı¾İ´ò°üµ½»º³åÇø(Ğ¡¶ËĞò)
-    data[0] = (uint8_t)(x & 0xFF);         // X×ø±êµÍ×Ö½Ú
-    data[1] = (uint8_t)((x >> 8) & 0xFF);  // X×ø±ê¸ß×Ö½Ú
-    data[2] = (uint8_t)(y & 0xFF);         // Y×ø±êµÍ×Ö½Ú
-    data[3] = (uint8_t)((y >> 8) & 0xFF);  // Y×ø±ê¸ß×Ö½Ú
+    // å°†åæ ‡æ•°æ®æ‰“åŒ…åˆ°ç¼“å†²åŒº(å°ç«¯åº)
+    data[0] = (uint8_t)(x & 0xFF);         // Xåæ ‡ä½å­—èŠ‚
+    data[1] = (uint8_t)((x >> 8) & 0xFF);  // Xåæ ‡é«˜å­—èŠ‚
+    data[2] = (uint8_t)(y & 0xFF);         // Yåæ ‡ä½å­—èŠ‚
+    data[3] = (uint8_t)((y >> 8) & 0xFF);  // Yåæ ‡é«˜å­—èŠ‚
     
-    // Ğ´ÈëFlash
+    // å†™å…¥Flash
     W25QXX_Write(data, addr, COORDINATE_SIZE);
     
-    return 0;  // ³É¹¦
+    return 0;  // æˆåŠŸ
 }
 
 /**
- * @brief  ´ÓFlash¶ÁÈ¡×ø±ê
- * @param  index: ×ø±êË÷Òı (0 ~ MAX_COORDINATE_COUNT-1)
- * @param  x: Ö¸ÏòX×ø±êµÄÖ¸Õë
- * @param  y: Ö¸ÏòY×ø±êµÄÖ¸Õë
- * @retval 0: ³É¹¦, 1: Ê§°Ü(Ë÷Òı³¬³ö·¶Î§»òÖ¸ÕëÎª¿Õ)
+ * @brief  ä»Flashè¯»å–åæ ‡
+ * @param  index: åæ ‡ç´¢å¼• (0 ~ MAX_COORDINATE_COUNT-1)
+ * @param  x: æŒ‡å‘Xåæ ‡çš„æŒ‡é’ˆ
+ * @param  y: æŒ‡å‘Yåæ ‡çš„æŒ‡é’ˆ
+ * @retval 0: æˆåŠŸ, 1: å¤±è´¥(ç´¢å¼•è¶…å‡ºèŒƒå›´æˆ–æŒ‡é’ˆä¸ºç©º)
  */
 uint8_t W25QXX_ReadCoordinate(uint16_t index, uint16_t *x, uint16_t *y)
 {
     uint32_t addr;
     uint8_t data[COORDINATE_SIZE];
     
-    // ¼ì²é²ÎÊı
+    // æ£€æŸ¥å‚æ•°
     if(index >= MAX_COORDINATE_COUNT || x == NULL || y == NULL)
     {
-        return 1;  // ²ÎÊı´íÎó
+        return 1;  // å‚æ•°é”™è¯¯
     }
     
-    // ¼ÆËã´æ´¢µØÖ·
+    // è®¡ç®—å­˜å‚¨åœ°å€
     addr = COORDINATE_BASE_ADDR + (index * COORDINATE_SIZE);
     
-    // ´ÓFlash¶ÁÈ¡Êı¾İ
+    // ä»Flashè¯»å–æ•°æ®
     W25QXX_Read(data, addr, COORDINATE_SIZE);
     
-    // ½âÎö×ø±êÊı¾İ(Ğ¡¶ËĞò)
-    *x = (uint16_t)(data[0] | (data[1] << 8));  // ÖØ¹¹X×ø±ê
-    *y = (uint16_t)(data[2] | (data[3] << 8));  // ÖØ¹¹Y×ø±ê
+    // è§£æåæ ‡æ•°æ®(å°ç«¯åº)
+    *x = (uint16_t)(data[0] | (data[1] << 8));  // é‡æ„Xåæ ‡
+    *y = (uint16_t)(data[2] | (data[3] << 8));  // é‡æ„Yåæ ‡
     
-    return 0;  // ³É¹¦
+    return 0;  // æˆåŠŸ
 }
 
 /**
- * @brief  ²Á³ı×ø±ê´æ´¢ÇøÓò
- * @param  ÎŞ
- * @retval 0: ³É¹¦
- * @note   Õâ»áÇå³ıËùÓĞ´æ´¢µÄ×ø±ê£¬½÷É÷Ê¹ÓÃ
+ * @brief  æ“¦é™¤åæ ‡å­˜å‚¨åŒºåŸŸ
+ * @param  æ— 
+ * @retval 0: æˆåŠŸ
+ * @note   è¿™ä¼šæ¸…é™¤æ‰€æœ‰å­˜å‚¨çš„åæ ‡ï¼Œè°¨æ…ä½¿ç”¨
  */
 uint8_t W25QXX_EraseCoordinateArea(void)
 {
     uint32_t sector_num;
     
-    // ¼ÆËãÆğÊ¼ÉÈÇøºÅ (Ã¿¸öÉÈÇø4096×Ö½Ú)
+    // è®¡ç®—èµ·å§‹æ‰‡åŒºå· (æ¯ä¸ªæ‰‡åŒº4096å­—èŠ‚)
     sector_num = COORDINATE_BASE_ADDR / 4096;
     
-    // ²Á³ıÉÈÇø
+    // æ“¦é™¤æ‰‡åŒº
     W25QXX_Erase_Sector(sector_num);
     
-    return 0;  // ³É¹¦
+    return 0;  // æˆåŠŸ
 }

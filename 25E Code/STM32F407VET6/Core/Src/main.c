@@ -106,8 +106,9 @@ int main(void)
   My_TIM_Init();
   W25QXX_ReadCoordinate(0, (uint16_t *)&cross.x, (uint16_t *)&cross.y);
   Emm_V5_En_Control(&huart2, 0x01, true, 0);
-  Emm_V5_En_Control(&huart4, 0x01, true, 0);
+  /* UART4连接MSPM0底盘，当前云台控制轴使用USART2。 */
   Pid_Init();
+  MotionFusion_Init();
   Menu_Init();
   scheduler_init();
   /* USER CODE END 2 */

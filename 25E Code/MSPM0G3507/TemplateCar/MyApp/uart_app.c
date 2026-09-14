@@ -84,9 +84,9 @@ void Uart_CH340_Init(void)
 
 void Uart_Task(void)
 {
-    //if(!uart_flag)return;
-    PRINT(speed, "%.2f,%.2f", left_encoder.speed_cm_s, right_encoder.speed_cm_s);
-    //my_printf(UART_CH340_INST, "Received: %s\r\n", uart_buffer);
+    if(!uart_flag) return;
+
+    /* UART0已作为板间链路，调试打印不再占用该通道。 */
     memset(uart_buffer,0,UART_MAX_BUFFER);
     uart_flag=0;
 }

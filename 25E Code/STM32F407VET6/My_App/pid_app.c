@@ -1,15 +1,18 @@
 #include "pid_app.h"
-bool Pid_Running;//0Í£Ö¹ 1Æô¶¯
-bool cross_OK;//Ê®×Ö¼ÜÃé×¼±êÖ¾Î»
+bool Pid_Running;//0åœæ­¢ 1å¯åŠ¨
+bool cross_OK;//åå­—æ¶ç„å‡†æ ‡å¿—ä½
 bool laser_open;
 uint8_t pid_mode;
 PID_T X_pid,X_big_jin_pid,X_big_yuan_pid;
+PID_T X_rate_pid;
 float X_Output=0,Y_Output=0;
+float X_Target_Rate=0;
 uint16_t Timer_500ms;
+static bool rate_loop_active;
 PID_para X_para={
-    .kp=0.5,//0.12//0.18//0.2//0.3//0.4 //0.8(³¬µ÷1)//0.5      //0.4
+    .kp=0.5,//0.12//0.18//0.2//0.3//0.4 //0.8(è¶…è°ƒ1)//0.5      //0.4
     .ki=0,
-    .kd=1000,//10//80//100//150//200//400(³¬µ÷1)//250     //250
+    .kd=1000,//10//80//100//150//200//400(è¶…è°ƒ1)//250     //250
     .target=0,
     .limit=10,
 };
@@ -30,44 +33,100 @@ PID_para X_big_yuan_para={
     .limit=200,
 };
 
+/*
+ * äº‘å°è§’é€Ÿåº¦å†…ç¯åˆå§‹å‚æ•°ã€‚
+ * å¤–ç¯è¾“å‡ºå•ä½æŒ‰æœŸæœ›è§’é€Ÿåº¦(deg/s)è§£é‡Šï¼Œå†…ç¯åé¦ˆä¸ºäº‘å°IMUçš„gzã€‚
+ * è¯¥ç»„å‚æ•°åªä½œä¸ºå®‰å…¨èµ·è°ƒå€¼ï¼Œå¿…é¡»åœ¨å®è½¦ä¸ŠæŒ‰â€œå…ˆå†…ç¯ã€åå¤–ç¯â€çš„é¡ºåºæ•´å®šã€‚
+ */
+PID_para X_rate_para={
+    .kp=1.0f,
+    .ki=0.01f,
+    .kd=0.02f,
+    .target=0,
+    .limit=300,
+};
+
 
 ///**
-// * @brief    µç»ú½Ç¶ÈÎ»ÖÃ¿ØÖÆ
-// * @param    huart: ´®¿Ú¾ä±ú
-// * @param    angle: Ä¿±ê½Ç¶È(¶È)£¬ÕıÖµÎªË³Ê±Õë£¬¸ºÖµÎªÄæÊ±Õë
-// * @param    raF: ÏàÎ»/¾ø¶Ô±êÖ¾£¬falseÎªÏà¶ÔÔË¶¯£¬trueÎª¾ø¶ÔÖµÔË¶¯
-// * @note     ²½½øµç»ú²ÎÊı£º1.8¡ã¾«¶È£¬16Ï¸·Ö£¬Ã¿Âö³å = 0.1125¡ã
+// * @brief    ç”µæœºè§’åº¦ä½ç½®æ§åˆ¶
+// * @param    huart: ä¸²å£å¥æŸ„
+// * @param    angle: ç›®æ ‡è§’åº¦(åº¦)ï¼Œæ­£å€¼ä¸ºé¡ºæ—¶é’ˆï¼Œè´Ÿå€¼ä¸ºé€†æ—¶é’ˆ
+// * @param    raF: ç›¸ä½/ç»å¯¹æ ‡å¿—ï¼Œfalseä¸ºç›¸å¯¹è¿åŠ¨ï¼Œtrueä¸ºç»å¯¹å€¼è¿åŠ¨
+// * @note     æ­¥è¿›ç”µæœºå‚æ•°ï¼š1.8Â°ç²¾åº¦ï¼Œ16ç»†åˆ†ï¼Œæ¯è„‰å†² = 0.1125Â°
 // */
 //void Motor_Position_Control(UART_HandleTypeDef* huart, float angle, bool raF) 
 //{    
-//    // ¼ÆËãÂö³åÊı£º1.8¡ã¾«¶È£¬16Ï¸·Ö£¬Ã¿Âö³å½Ç¶È = 1.8/16 = 0.1125¡ã
+//    // è®¡ç®—è„‰å†²æ•°ï¼š1.8Â°ç²¾åº¦ï¼Œ16ç»†åˆ†ï¼Œæ¯è„‰å†²è§’åº¦ = 1.8/16 = 0.1125Â°
 //    uint32_t pulses = (uint32_t)(fabsf(angle) / 0.1125f);
 //    
 //    if(angle < 0)
 //    {
-//        // ¸º½Ç¶È£¬ÄæÊ±Õë·½Ïò(CCW)
+//        // è´Ÿè§’åº¦ï¼Œé€†æ—¶é’ˆæ–¹å‘(CCW)
 //        Emm_V5_Pos_Control(huart, 0x01, 1, 10, 0, pulses, raF, 0);
 //    }
 //    else
 //    {
-//        // Õı½Ç¶È»òÁã½Ç¶È£¬Ë³Ê±Õë·½Ïò(CW)
+//        // æ­£è§’åº¦æˆ–é›¶è§’åº¦ï¼Œé¡ºæ—¶é’ˆæ–¹å‘(CW)
 //        Emm_V5_Pos_Control(huart, 0x01, 0, 10, 0, pulses, raF, 0);
 //    }
 //}
 
 
-/*ÉèÖÃÊä³ö*/
+/*è®¾ç½®è¾“å‡º*/
 void Motor_Position_Control(UART_HandleTypeDef* huart,float output)
 {
    if(output < 0)
    {
-       output = -output;  // È¡¾ø¶ÔÖµ
+       output = -output;  // å–ç»å¯¹å€¼
        Emm_V5_Vel_Control(huart, 0x01, 1,(uint16_t)output, 0, 0);
    }
    else
    {
        Emm_V5_Vel_Control(huart, 0x01, 0,(uint16_t)output, 0, 0);
    }
+}
+
+static float Cascade_Gimbal_Control(PID_T *position_pid)
+{
+    float rate_feedback;
+    float motor_output;
+
+    /* ä½ç½®å¤–ç¯ï¼šè§†è§‰åƒç´ åå·® -> äº‘å°æœŸæœ›è§’é€Ÿåº¦ã€‚ */
+    pid_set_target(position_pid, cross.x);
+    X_Target_Rate =
+        pid_calculate_positional(position_pid, g_circle.center_x);
+
+    if (MotionFusion_IsValid())
+    {
+        if (!rate_loop_active)
+        {
+            pid_reset(&X_rate_pid);
+            rate_loop_active = true;
+        }
+
+        /* è§’é€Ÿåº¦å†…ç¯ï¼šæœŸæœ›è§’é€Ÿåº¦ - äº‘å°IMUå®æµ‹è§’é€Ÿåº¦ã€‚ */
+        rate_feedback = MotionFusion_GetGimbalYawRate();
+        pid_set_target(&X_rate_pid, X_Target_Rate);
+        motor_output =
+            pid_calculate_positional(&X_rate_pid, rate_feedback);
+
+        /* ç¼–ç å™¨å·®é€Ÿä¼°è®¡è½¦ä½“è½¬åŠ¨è¶‹åŠ¿ï¼Œä½œä¸ºç‹¬ç«‹å‰é¦ˆå åŠ è‡³æ‰§è¡Œé‡ã€‚ */
+        motor_output += MotionFusion_GetEncoderFeedforward();
+    }
+    else
+    {
+        /* é¥æµ‹å¤±è”æ—¶é€€åŒ–ä¸ºåŸè§†è§‰ä½ç½®ç¯ï¼Œé¿å…ç”¨æ— æ•ˆè§’é€Ÿåº¦é—­ç¯ã€‚ */
+        if (rate_loop_active)
+        {
+            pid_reset(&X_rate_pid);
+            rate_loop_active = false;
+        }
+        motor_output = X_Target_Rate;
+    }
+
+    return pid_constrain(motor_output,
+                         -X_rate_para.limit,
+                         X_rate_para.limit);
 }
 
 
@@ -78,121 +137,123 @@ void Pid_Init(void)
     pid_init(&X_pid,X_para.kp,X_para.ki,X_para.kd,X_para.target,X_para.limit);
     pid_init(&X_big_jin_pid,X_big_jin_para.kp,X_big_jin_para.ki,X_big_jin_para.kd,X_big_jin_para.target,X_big_jin_para.limit);
     pid_init(&X_big_yuan_pid,X_big_yuan_para.kp,X_big_yuan_para.ki,X_big_yuan_para.kd,X_big_yuan_para.target,X_big_yuan_para.limit);
+    pid_init(&X_rate_pid,X_rate_para.kp,X_rate_para.ki,X_rate_para.kd,X_rate_para.target,X_rate_para.limit);
+    rate_loop_active = false;
 }
 
 
 /**
- * @brief PIDÄ£Ê½0´¦Àíº¯Êı
- * @note  Èç¹ûXÖá²îÖµĞ¡ÓÚ5£¬Á¢¼´Æô¶¯¼¤¹â£»·ñÔò½øĞĞXÖáPID¿ØÖÆ
+ * @brief PIDæ¨¡å¼0å¤„ç†å‡½æ•°
+ * @note  å¦‚æœXè½´å·®å€¼å°äº5ï¼Œç«‹å³å¯åŠ¨æ¿€å…‰ï¼›å¦åˆ™è¿›è¡ŒXè½´PIDæ§åˆ¶
  */
 static void Pid_Mode_0_Handler(void)
 {
     
-    // Ô²ĞÄ×ø±êÓĞĞ§£¬½øĞĞPID¿ØÖÆ
-    // ¼ì²éXÖáÊÇ·ñ½Ó½üÄ¿±êÎ»ÖÃ
+    // åœ†å¿ƒåæ ‡æœ‰æ•ˆï¼Œè¿›è¡ŒPIDæ§åˆ¶
+    // æ£€æŸ¥Xè½´æ˜¯å¦æ¥è¿‘ç›®æ ‡ä½ç½®
     if (ABS(cross.x - g_circle.center_x) <= 4) {
-        // ½Ó½üÄ¿±ê£¬¿ªÊ¼¼ÆÊ±
+        // æ¥è¿‘ç›®æ ‡ï¼Œå¼€å§‹è®¡æ—¶
         Timer_500ms++;
         
-        // Èç¹û³ÖĞøÊ±¼ä³¬¹ı500ms£¨50 * 10ms£©£¬Æô¶¯¼¤¹â
+        // å¦‚æœæŒç»­æ—¶é—´è¶…è¿‡500msï¼ˆ50 * 10msï¼‰ï¼Œå¯åŠ¨æ¿€å…‰
         if (Timer_500ms >= 80) {
             if (laser_open == 0) {
                 HAL_GPIO_WritePin(LASER_GPIO_Port, LASER_Pin, GPIO_PIN_SET);
                 laser_open = 1;
             }
-            Timer_500ms = 0;  // ÖØÖÃ¼ÆÊ±Æ÷£¬±ÜÃâÖØ¸´´¥·¢
+            Timer_500ms = 0;  // é‡ç½®è®¡æ—¶å™¨ï¼Œé¿å…é‡å¤è§¦å‘
         }
     } else {
-        // Ô¶ÀëÄ¿±ê£¬ÖØÖÃ¼ÆÊ±Æ÷
+        // è¿œç¦»ç›®æ ‡ï¼Œé‡ç½®è®¡æ—¶å™¨
         Timer_500ms = 0;
     }
     
-    // Ö´ĞĞXÖáPID¿ØÖÆ
-    pid_set_target(&X_pid, cross.x);
-    X_Output = pid_calculate_positional(&X_pid, g_circle.center_x);
+    // æ‰§è¡ŒXè½´PIDæ§åˆ¶
+    X_Output = Cascade_Gimbal_Control(&X_pid);
     Motor_Position_Control(&X_huart, X_Output);
 }
 
 /**
- * @brief PIDÄ£Ê½1´¦Àíº¯Êı
- * @note  Èç¹ûÔ²ĞÄ×ø±êÎª0Ôòµç»úĞı×ª£»·ñÔòPID¿ØÖÆ£¬²îÖµĞ¡ÓÚ5³¬¹ı500msºóÆô¶¯¼¤¹â
+ * @brief PIDæ¨¡å¼1å¤„ç†å‡½æ•°
+ * @note  å¦‚æœåœ†å¿ƒåæ ‡ä¸º0åˆ™ç”µæœºæ—‹è½¬ï¼›å¦åˆ™PIDæ§åˆ¶ï¼Œå·®å€¼å°äº5è¶…è¿‡500msåå¯åŠ¨æ¿€å…‰
  */
 static void Pid_Mode_1_Handler(void)
 {
-    // ¼ì²éÔ²ĞÄ×ø±êÊÇ·ñÓĞĞ§
+    // æ£€æŸ¥åœ†å¿ƒåæ ‡æ˜¯å¦æœ‰æ•ˆ
     if (g_circle.center_x == 0 || g_circle.center_y == 0) {
-        // Ô²ĞÄ×ø±êÎŞĞ§£¬¸øµç»úÒ»¸ö¹Ì¶¨µÄĞı×ªËÙ¶È
+        // åœ†å¿ƒåæ ‡æ— æ•ˆï¼Œç»™ç”µæœºä¸€ä¸ªå›ºå®šçš„æ—‹è½¬é€Ÿåº¦
         Emm_V5_Vel_Control(&X_huart, 0x01, 0, 30, 0, 0);
-        Timer_500ms = 0;  // ÖØÖÃ¼ÆÊ±Æ÷
+        Timer_500ms = 0;  // é‡ç½®è®¡æ—¶å™¨
         return;
     }
     
-    // Ô²ĞÄ×ø±êÓĞĞ§£¬½øĞĞPID¿ØÖÆ
-    // ¼ì²éXÖáÊÇ·ñ½Ó½üÄ¿±êÎ»ÖÃ
+    // åœ†å¿ƒåæ ‡æœ‰æ•ˆï¼Œè¿›è¡ŒPIDæ§åˆ¶
+    // æ£€æŸ¥Xè½´æ˜¯å¦æ¥è¿‘ç›®æ ‡ä½ç½®
     if (ABS(cross.x - g_circle.center_x) <= 4) {
-        // ½Ó½üÄ¿±ê£¬¿ªÊ¼¼ÆÊ±
+        // æ¥è¿‘ç›®æ ‡ï¼Œå¼€å§‹è®¡æ—¶
         Timer_500ms++;
         
-        // Èç¹û³ÖĞøÊ±¼ä³¬¹ı500ms£¨50 * 10ms£©£¬Æô¶¯¼¤¹â
+        // å¦‚æœæŒç»­æ—¶é—´è¶…è¿‡500msï¼ˆ50 * 10msï¼‰ï¼Œå¯åŠ¨æ¿€å…‰
         if (Timer_500ms >= 150) {
             if (laser_open == 0) {
                 HAL_GPIO_WritePin(LASER_GPIO_Port, LASER_Pin, GPIO_PIN_SET);
                 laser_open = 1;
             }
-            Timer_500ms = 0;  // ÖØÖÃ¼ÆÊ±Æ÷£¬±ÜÃâÖØ¸´´¥·¢
+            Timer_500ms = 0;  // é‡ç½®è®¡æ—¶å™¨ï¼Œé¿å…é‡å¤è§¦å‘
         }
     } else {
-        // Ô¶ÀëÄ¿±ê£¬ÖØÖÃ¼ÆÊ±Æ÷
+        // è¿œç¦»ç›®æ ‡ï¼Œé‡ç½®è®¡æ—¶å™¨
         Timer_500ms = 0;
     }
     
-    // Ö´ĞĞXÖáPID¿ØÖÆ
-    pid_set_target(&X_pid, cross.x);
-    X_Output = pid_calculate_positional(&X_pid, g_circle.center_x);
+    // æ‰§è¡ŒXè½´PIDæ§åˆ¶
+    X_Output = Cascade_Gimbal_Control(&X_pid);
     Motor_Position_Control(&X_huart, X_Output);
 }
 
 /**
- * @brief PIDÄ£Ê½0´¦Àíº¯Êı
- * @note  Èç¹ûXÖá²îÖµĞ¡ÓÚ5£¬Á¢¼´Æô¶¯¼¤¹â£»·ñÔò½øĞĞXÖáPID¿ØÖÆ
+ * @brief PIDæ¨¡å¼0å¤„ç†å‡½æ•°
+ * @note  å¦‚æœXè½´å·®å€¼å°äº5ï¼Œç«‹å³å¯åŠ¨æ¿€å…‰ï¼›å¦åˆ™è¿›è¡ŒXè½´PIDæ§åˆ¶
  */
 static void Pid_Mode_2_Handler(void)
 {
  
-    // Ö´ĞĞXÖáPID¿ØÖÆ
-    pid_set_target(&X_big_jin_pid, cross.x);
-    X_Output = pid_calculate_positional(&X_big_jin_pid, g_circle.center_x);
+    // æ‰§è¡ŒXè½´PIDæ§åˆ¶
+    X_Output = Cascade_Gimbal_Control(&X_big_jin_pid);
     Motor_Position_Control(&X_huart, X_Output);
 }
 /**
- * @brief PIDÄ£Ê½0´¦Àíº¯Êı
- * @note  Èç¹ûXÖá²îÖµĞ¡ÓÚ5£¬Á¢¼´Æô¶¯¼¤¹â£»·ñÔò½øĞĞXÖáPID¿ØÖÆ
+ * @brief PIDæ¨¡å¼0å¤„ç†å‡½æ•°
+ * @note  å¦‚æœXè½´å·®å€¼å°äº5ï¼Œç«‹å³å¯åŠ¨æ¿€å…‰ï¼›å¦åˆ™è¿›è¡ŒXè½´PIDæ§åˆ¶
  */
 static void Pid_Mode_3_Handler(void)
 {
  
-    // Ö´ĞĞXÖáPID¿ØÖÆ
-    pid_set_target(&X_big_yuan_pid, cross.x);
-    X_Output = pid_calculate_positional(&X_big_yuan_pid, g_circle.center_x);
+    // æ‰§è¡ŒXè½´PIDæ§åˆ¶
+    X_Output = Cascade_Gimbal_Control(&X_big_yuan_pid);
     Motor_Position_Control(&X_huart, X_Output);
 }
 
 /**
- * @brief PID¿ØÖÆÈÎÎñ
- * @note  ½¨ÒéÒÆ³öÖĞ¶Ï£¬ÔÚÖ÷Ñ­»·ÖĞÖ´ĞĞ
+ * @brief PIDæ§åˆ¶ä»»åŠ¡
+ * @note  å»ºè®®ç§»å‡ºä¸­æ–­ï¼Œåœ¨ä¸»å¾ªç¯ä¸­æ‰§è¡Œ
  */
 void Pid_Task(void)
 {
-    // Èç¹ûPIDÎ´Æô¶¯£¬Ö±½Ó·µ»Ø
+    // å¦‚æœPIDæœªå¯åŠ¨ï¼Œç›´æ¥è¿”å›
     if (Pid_Running == 0) {
+        if (rate_loop_active) {
+            pid_reset(&X_rate_pid);
+            rate_loop_active = false;
+        }
         return;
     }
     
     switch (pid_mode) {
-        case 0:  // Ä£Ê½0£º»ù´¡PID¿ØÖÆ
+        case 0:  // æ¨¡å¼0ï¼šåŸºç¡€PIDæ§åˆ¶
             Pid_Mode_0_Handler();
             break;
-        case 1:  // Ä£Ê½1£º´øÑÓÊ±¼¤¹â¿ØÖÆµÄPID
+        case 1:  // æ¨¡å¼1ï¼šå¸¦å»¶æ—¶æ¿€å…‰æ§åˆ¶çš„PID
             Pid_Mode_1_Handler();
             break;
         case 2:
@@ -202,7 +263,7 @@ void Pid_Task(void)
             Pid_Mode_3_Handler();
         break;
         default:
-            // Î´ÖªÄ£Ê½£¬²»Ö´ĞĞÈÎºÎ²Ù×÷
+            // æœªçŸ¥æ¨¡å¼ï¼Œä¸æ‰§è¡Œä»»ä½•æ“ä½œ
             break;
     }
 }
